@@ -1,8 +1,8 @@
-# Copilot Instructions for npm-ts-template
+# Copilot Instructions for baubit-js
 
 ## Repository Overview
 
-This is a modern TypeScript npm package template designed to provide a production-ready starting point for creating npm packages. It uses ESM (ES Modules), includes comprehensive testing, linting, and formatting tools.
+This is a reusable TypeScript/JavaScript library designed for modern web applications. It uses ESM (ES Modules), includes comprehensive testing, linting, and formatting tools.
 
 ## Tech Stack
 
@@ -98,14 +98,8 @@ npm run clean       # Remove dist/ directory
 
 ### Package Publishing
 
-- This is a template, not a publishable package itself
-- Users should update `package.json` fields before publishing:
-  - `name` (currently "REPLACE_ME")
-  - `version`
-  - `description`
-  - `author`
-  - `repository` URLs
 - The `prepublishOnly` script ensures quality checks before publishing
+- Publishing is automated via GitHub workflows when merging to release branch
 
 ## Important Notes
 
@@ -113,16 +107,15 @@ npm run clean       # Remove dist/ directory
 - Configuration files use `.cjs` extension where CommonJS is required (e.g., `jest.config.cjs`)
 - All source code should use `.ts` extension
 - Don't commit `dist/`, `coverage/`, or `node_modules/` directories
-- Maintain backward compatibility for template users
 - Keep dependencies up to date but stable
 
 ## When Suggesting Changes
 
-- Preserve the template nature of this repository
-- Keep it simple and minimal - this is a starting point for others
+- Keep the library focused and reusable
 - Ensure all changes work with ESM
-- Update README.md if adding new features or commands
-- Consider impact on users who have already used this template
+- Update README.md when adding new features
+- Maintain backward compatibility when possible
 - Test changes thoroughly with all npm scripts
 - Maintain strict TypeScript types
 - Follow existing code patterns and conventions
+- Add comprehensive tests for new features

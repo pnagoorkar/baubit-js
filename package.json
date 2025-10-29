@@ -1,7 +1,7 @@
 {
-    "name": "REPLACE_ME",
+    "name": "baubit-js",
     "version": "0.0.0",
-    "description": "A modern TypeScript npm package template with ESM support, testing, and linting",
+    "description": "A reusable TypeScript/JavaScript library for modern web applications",
     "type": "module",
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
@@ -25,21 +25,21 @@
     },
     "keywords": [
         "typescript",
-        "template",
-        "npm",
-        "package",
+        "javascript",
+        "library",
+        "utilities",
         "esm"
     ],
-    "author": "",
+    "author": "Prashant Nagoorkar",
     "license": "MIT",
     "repository": {
         "type": "git",
-        "url": "https://github.com/pnagoorkar/npm-ts-template.git"
+        "url": "https://github.com/pnagoorkar/baubit-js.git"
     },
     "bugs": {
-        "url": "https://github.com/pnagoorkar/npm-ts-template/issues"
+        "url": "https://github.com/pnagoorkar/baubit-js/issues"
     },
-    "homepage": "https://github.com/pnagoorkar/npm-ts-template#readme",
+    "homepage": "https://github.com/pnagoorkar/baubit-js#readme",
     "devDependencies": {
         "@eslint/js": "^9.38.0",
         "@types/eslint__js": "^8.42.3",

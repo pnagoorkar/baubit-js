@@ -1,30 +1,27 @@
-# TypeScript NPM Package Template
+# baubit-js
 
-A modern, production-ready TypeScript npm package template with ESM support, comprehensive testing, and code quality tools.
+A reusable TypeScript/JavaScript library for modern web applications. This library provides a collection of utilities and components that can be used across TypeScript and JavaScript projects.
 
 ## Features
 
 - ✅ **TypeScript**: Full TypeScript support with type declarations
 - ✅ **ESM**: Native ES Module support
-- ✅ **Testing**: Jest with ts-jest for unit testing
+- ✅ **Testing**: Jest with ts-jest for comprehensive testing
 - ✅ **Linting**: ESLint with TypeScript support
 - ✅ **Formatting**: Prettier for consistent code style
 - ✅ **Build**: Automated build process with TypeScript compiler
 - ✅ **Coverage**: Code coverage reporting with thresholds
-- ✅ **CI/CD Ready**: Pre-configured scripts for continuous integration
+- ✅ **CI/CD**: Automated workflows for building, testing, and releasing
+
+## Installation
+
+```bash
+npm install baubit-js
+```
 
 ## Getting Started
 
-### Use This Template
-
-1. Click "Use this template" button on GitHub
-2. Clone your new repository
-3. Update `package.json`:
-   - Change `name` from `REPLACE_ME` to your package name
-   - Update `version`, `description`, `author`, and `keywords`
-   - Update repository URLs
-4. Install dependencies: `npm install`
-5. Start developing!
+Specific features and usage instructions will be added as the library evolves.
 
 ### Development
 
@@ -78,42 +75,19 @@ npm run clean
 └── README.md         # This file
 ```
 
-## Publishing to NPM
+## Contributing
 
-Before publishing:
-
-1. Update version in `package.json`
-2. Ensure all tests pass: `npm test`
-3. Build the package: `npm run build`
-4. Test locally: `npm pack` and install in another project
-
-Then publish:
-
-```bash
-npm publish
-```
-
-The `prepublishOnly` script automatically runs linting, formatting checks, tests, and build before publishing.
+Contributions are welcome! Please ensure all tests pass and code follows the project's coding standards before submitting a pull request.
 
 ## Configuration
 
-### TypeScript
+### Code Quality
 
-The `tsconfig.json` is configured for modern ES2020 with strict type checking. Adjust compiler options as needed for your project.
-
-### Jest
-
-Coverage thresholds are set to:
-- Lines: 90%
-- Statements: 90%
-- Branches: 80%
-- Functions: 90%
-
-Adjust these in `jest.config.cjs` based on your needs.
-
-### ESLint & Prettier
-
-ESLint uses TypeScript-specific rules with recommended configurations. Prettier is integrated to avoid conflicts. Customize rules in `eslint.config.js` and `.prettierrc.json`.
+This project maintains high code quality standards:
+- TypeScript with strict type checking
+- ESLint for code linting
+- Prettier for code formatting
+- Jest for testing with coverage thresholds (90% lines, 90% statements, 80% branches, 90% functions)
 
 ## License
 
