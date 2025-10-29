@@ -1,5 +1,11 @@
 # baubit-js
 
+[![Build and Test - Main](https://github.com/pnagoorkar/baubit-js/actions/workflows/main.yml/badge.svg)](https://github.com/pnagoorkar/baubit-js/actions/workflows/main.yml)
+
+[![codecov](https://codecov.io/gh/pnagoorkar/baubit-js/branch/main/graph/badge.svg)](https://codecov.io/gh/pnagoorkar/baubit-js)
+
+[![npm version](https://img.shields.io/npm/v/baubit-js.svg)](https://www.npmjs.com/package/baubit-js)
+
 A reusable TypeScript/JavaScript library for modern web applications. This library provides a collection of utilities and components that can be used across TypeScript and JavaScript projects.
 
 ## Features
