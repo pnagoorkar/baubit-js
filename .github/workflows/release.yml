@@ -1,0 +1,79 @@
+name: Release
+
+on:
+  push: 
+    branches:
+      - release
+      
+permissions:
+  contents: write  # Needed to push version tag and upload release asset
+
+jobs:
+  publish-to-npm:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Required to fetch tags
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+      
+      - name: Verify most recent commit has tagged with version
+        id: get_tag
+        run: |
+          set -euo pipefail
+          
+          git fetch --tags  
+
+          # Get the latest tag matching pattern
+          TAG=$(git log -n 100 --pretty=format:%H \
+              | xargs -n1 git tag --contains \
+              | grep -E '^v[0-9]{4}\.[0-9]{1,2}\.[0-9]+$' \
+              | sort -V | uniq | tail -n1)  
+          if [ -z "$TAG" ]; then
+          echo "No version tag found."
+          exit 1
+          fi  
+          echo "Latest version tag: $TAG"
+          
+          CURRENT_VERSION=${TAG#v};
+
+          echo "version=${CURRENT_VERSION}" >> "$GITHUB_OUTPUT"
+
+          npm version $CURRENT_VERSION --no-git-tag-version     
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Publish to npm
+        run: |
+          set -euo pipefail
+
+          echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
+          npm publish
+      - name: Create github release
+        env:
+            GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          
+          # Get current commit SHA
+          MERGE_COMMIT=$(git rev-parse HEAD)          
+
+          # Find merged PR associated with that commit
+          PR_NUMBER=$(gh pr list --state merged --base release --json number,mergeCommit \
+            -q ".[] | select(.mergeCommit.oid == \"$MERGE_COMMIT\") | .number")
+            
+          # Get PR description as release notes
+          PR_BODY=$(gh pr view "$PR_NUMBER" --json body -q .body)
+          
+          
+          gh release create v${{ steps.get_tag.outputs.version }} --title v${{ steps.get_tag.outputs.version }} --notes "$PR_BODY"
+
+
+    

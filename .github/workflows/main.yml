@@ -1,0 +1,88 @@
+name: Main
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write  # Needed to push version tag and upload release asset
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+      
+      - name: Determine version
+        id: set_version
+        run: |
+          set -euo pipefail
+
+          # Get current year and ISO week number
+          YEAR=$(date +%Y)
+          WEEK=$(date +%V)
+
+          git fetch --tags
+
+          # List all tags matching the pattern "v${YEAR}.${WEEK}.*"
+          TAG_LIST=$(git tag -l "v${YEAR}.${WEEK}.*")
+
+          if [ -z "$TAG_LIST" ]; then
+              echo "No build found for v${YEAR}.${WEEK}.*"
+              echo "Setting build of the week to 1"
+              BUILD_OF_THE_WEEK=1
+          else
+              EXTRACTED_NUMBERS=$(echo "$TAG_LIST" | grep -o "[0-9]\+$")
+              SORTED_NUMBERS=$(echo "$EXTRACTED_NUMBERS" | sort -nr)
+              PREVIOUS_BUILD_OF_THE_WEEK=$(echo "$SORTED_NUMBERS" | head -n1)
+              echo "Previous build of the week: $PREVIOUS_BUILD_OF_THE_WEEK"
+
+              BUILD_OF_THE_WEEK=$((PREVIOUS_BUILD_OF_THE_WEEK + 1))
+          fi
+
+          echo "Build of the week - $BUILD_OF_THE_WEEK"
+          CURRENT_VERSION="${YEAR}.${WEEK}.${BUILD_OF_THE_WEEK}"
+          BUILD_TAG="v${CURRENT_VERSION}"
+          echo "Current version tag - $BUILD_TAG"
+
+          echo "version=$BUILD_TAG" >> $GITHUB_OUTPUT
+
+          npm version $CURRENT_VERSION --no-git-tag-version        
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build TypeScript
+        run: npm run build
+
+      - name: Run tests with coverage
+        run: npm test -- --coverage
+
+      - name: Tag commit with version
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git tag ${{ steps.set_version.outputs.version }} -m "Build ${{ steps.set_version.outputs.version }}"
+          git push origin ${{ steps.set_version.outputs.version }}
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage
+
+      - name: Upload to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+
