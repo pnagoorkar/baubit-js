@@ -19,12 +19,8 @@ export class PollingEventSource {
             if (this.onopen) {
                 this.onopen();
             }
-            this.startPolling();
+            void this.poll();
         }, 0);
-    }
-
-    private startPolling(): void {
-        void this.poll();
     }
 
     private async poll(): Promise<void> {
@@ -35,10 +31,17 @@ export class PollingEventSource {
                 if (this.onmessage) {
                     this.onmessage({ data });
                 }
+            } else {
+                // Handle non-OK HTTP responses
+                if (this.onerror) {
+                    this.onerror(new Error(`HTTP ${response.status}: ${response.statusText}`));
+                }
             }
         } catch (error) {
             if (this.onerror) {
-                this.onerror(error as Error);
+                // Ensure error is an Error instance
+                const errorObj = error instanceof Error ? error : new Error(String(error));
+                this.onerror(errorObj);
             }
         }
 

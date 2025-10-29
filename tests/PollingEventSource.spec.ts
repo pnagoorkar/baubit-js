@@ -140,5 +140,26 @@ describe('PollingEventSource', () => {
 
             source.close();
         });
+
+        it('should call onerror callback for non-OK HTTP responses', async () => {
+            (global.fetch as jest.Mock).mockResolvedValue({
+                ok: false,
+                status: 404,
+                statusText: 'Not Found',
+            });
+
+            const source = new PollingEventSource('https://example.com/api');
+            const onerror = jest.fn();
+            source.onerror = onerror;
+
+            jest.advanceTimersByTime(0);
+            await Promise.resolve();
+            await Promise.resolve();
+
+            expect(onerror).toHaveBeenCalledTimes(1);
+            expect(onerror).toHaveBeenCalledWith(new Error('HTTP 404: Not Found'));
+
+            source.close();
+        });
     });
 });
