@@ -27,7 +27,36 @@ npm install baubit-js
 
 ## Getting Started
 
-Specific features and usage instructions will be added as the library evolves.
+### WebViewStream
+
+`WebViewStream` provides an EventSource-like interface for MAUI WebView environments where keep-alive streams are not supported when intercepting WebResource requests. It implements the AsyncIterable protocol for consuming server-sent events.
+
+```typescript
+import { WebViewStream } from 'baubit-js';
+
+const controller = new AbortController();
+const stream = new WebViewStream('https://api.example.com/events', controller.signal);
+
+try {
+  for await (const event of stream) {
+    console.log('Received event:', event);
+    // Process event...
+  }
+} catch (error) {
+  console.error('Stream error:', error);
+} finally {
+  controller.abort(); // Clean up
+}
+```
+
+**Key Features:**
+- **Session Management**: Automatically initializes with unique instance ID
+- **Heartbeat Mechanism**: Maintains session health with configurable intervals
+- **Async Iteration**: Native support for `for await...of` loops
+- **Cancellation**: Uses standard `AbortSignal` for lifecycle control
+- **Error Handling**: Throws errors for failed requests, allowing try-catch handling
+
+See the [Wiki](https://github.com/pnagoorkar/baubit-js/wiki) for detailed documentation and examples.
 
 ### Development
 
