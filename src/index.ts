@@ -1,1 +1,1 @@
-export { PollingEventSource } from './PollingEventSource';
+export { PollingStream } from './PollingEventSource';

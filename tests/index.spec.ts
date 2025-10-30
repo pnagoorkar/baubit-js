@@ -1,9 +1,9 @@
-import { PollingEventSource } from '../src/index';
+import { PollingStream } from '../src/index';
 
 describe('index exports', () => {
-    it('should export PollingEventSource', () => {
-        expect(PollingEventSource).toBeDefined();
-        const instance = new PollingEventSource('https://example.com/api');
-        expect(instance).toBeInstanceOf(PollingEventSource);
+    it('should export PollingStream', () => {
+        expect(PollingStream).toBeDefined();
+        const instance = new PollingStream('https://example.com/api');
+        expect(instance).toBeInstanceOf(PollingStream);
     });
 });

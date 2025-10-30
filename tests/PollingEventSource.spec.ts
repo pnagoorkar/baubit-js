@@ -1,60 +1,26 @@
-import { PollingEventSource } from '../src/PollingEventSource';
+import { PollingStream } from '../src/PollingEventSource';
 
-describe('PollingEventSource', () => {
+describe('PollingStream', () => {
     beforeEach(() => {
-        jest.useFakeTimers();
         global.fetch = jest.fn();
     });
 
     afterEach(() => {
         jest.restoreAllMocks();
-        jest.useRealTimers();
     });
 
     describe('constructor', () => {
         it('should create an instance with a URL', () => {
-            const source = new PollingEventSource('https://example.com/api');
-            expect(source).toBeInstanceOf(PollingEventSource);
+            const stream = new PollingStream('https://example.com/api');
+            expect(stream).toBeInstanceOf(PollingStream);
         });
     });
 
-    describe('onopen', () => {
-        it('should call onopen callback when instance is created', () => {
-            const source = new PollingEventSource('https://example.com/api');
-            const onopen = jest.fn();
-            source.onopen = onopen;
+    describe('poll async iterator', () => {
+        it('should yield data from each poll', async () => {
+            const mockData1 = { message: 'test data 1' };
+            const mockData2 = { message: 'test data 2' };
 
-            jest.runAllTimers();
-
-            expect(onopen).toHaveBeenCalledTimes(1);
-        });
-    });
-
-    describe('poll', () => {
-        it('should poll the URL and call onmessage with data when poll() is called', async () => {
-            const mockData = { message: 'test data' };
-            (global.fetch as jest.Mock).mockResolvedValue({
-                ok: true,
-                json: () => Promise.resolve(mockData),
-            });
-
-            const source = new PollingEventSource('https://example.com/api');
-            const onmessage = jest.fn();
-            source.onmessage = onmessage;
-
-            // Caller triggers poll
-            await source.poll();
-
-            expect(global.fetch).toHaveBeenCalledWith('https://example.com/api');
-            expect(onmessage).toHaveBeenCalledTimes(1);
-            expect(onmessage).toHaveBeenCalledWith({ data: mockData });
-
-            source.close();
-        });
-
-        it('should allow multiple polls triggered by the caller', async () => {
-            const mockData1 = { id: 1 };
-            const mockData2 = { id: 2 };
             (global.fetch as jest.Mock)
                 .mockResolvedValueOnce({
                     ok: true,
@@ -65,101 +31,168 @@ describe('PollingEventSource', () => {
                     json: () => Promise.resolve(mockData2),
                 });
 
-            const source = new PollingEventSource('https://example.com/api');
-            const onmessage = jest.fn();
-            source.onmessage = onmessage;
+            const stream = new PollingStream('https://example.com/api');
+            const results: unknown[] = [];
 
-            // First poll triggered by caller
-            await source.poll();
+            const iterator = stream.poll();
 
-            expect(onmessage).toHaveBeenCalledTimes(1);
-            expect(onmessage).toHaveBeenCalledWith({ data: mockData1 });
+            // Get first result
+            const result1 = await iterator.next();
+            expect(result1.done).toBe(false);
+            expect(result1.value).toEqual(mockData1);
+            results.push(result1.value);
 
-            // Second poll triggered by caller after processing first event
-            await source.poll();
+            // Get second result
+            const result2 = await iterator.next();
+            expect(result2.done).toBe(false);
+            expect(result2.value).toEqual(mockData2);
+            results.push(result2.value);
 
-            expect(onmessage).toHaveBeenCalledTimes(2);
-            expect(onmessage).toHaveBeenCalledWith({ data: mockData2 });
-
-            source.close();
+            expect(results).toEqual([mockData1, mockData2]);
+            expect(global.fetch).toHaveBeenCalledTimes(2);
         });
 
-        it('should not poll after close is called', async () => {
+        it('should work with for-await-of loop', async () => {
+            const mockData1 = { id: 1 };
+            const mockData2 = { id: 2 };
+
+            (global.fetch as jest.Mock)
+                .mockResolvedValueOnce({
+                    ok: true,
+                    json: () => Promise.resolve(mockData1),
+                })
+                .mockResolvedValueOnce({
+                    ok: true,
+                    json: () => Promise.resolve(mockData2),
+                });
+
+            const stream = new PollingStream('https://example.com/api');
+            const results: unknown[] = [];
+
+            const controller = new AbortController();
+
+            // Use for-await-of to iterate
+            let count = 0;
+            for await (const data of stream.poll(controller.signal)) {
+                results.push(data);
+                count++;
+
+                // Stop after 2 iterations
+                if (count >= 2) {
+                    controller.abort();
+                }
+            }
+
+            expect(results).toEqual([mockData1, mockData2]);
+        });
+
+        it('should stop polling when AbortSignal is triggered', async () => {
+            const mockData = { message: 'test' };
             (global.fetch as jest.Mock).mockResolvedValue({
                 ok: true,
-                json: () => Promise.resolve({ data: 'test' }),
+                json: () => Promise.resolve(mockData),
             });
 
-            const source = new PollingEventSource('https://example.com/api');
-            const onmessage = jest.fn();
-            source.onmessage = onmessage;
+            const stream = new PollingStream('https://example.com/api');
+            const controller = new AbortController();
+            const results: unknown[] = [];
 
-            // First poll
-            await source.poll();
-            expect(onmessage).toHaveBeenCalledTimes(1);
+            const iterator = stream.poll(controller.signal);
 
-            // Close the source
-            source.close();
+            // Get first result
+            const result1 = await iterator.next();
+            expect(result1.done).toBe(false);
+            results.push(result1.value);
 
-            // Try to poll after close
-            await source.poll();
+            // Abort before next poll
+            controller.abort();
 
-            // Should still be 1, not 2
-            expect(onmessage).toHaveBeenCalledTimes(1);
-        });
-    });
+            // Try to get next result - should be done
+            const result2 = await iterator.next();
+            expect(result2.done).toBe(true);
 
-    describe('onerror', () => {
-        it('should call onerror callback when fetch fails', async () => {
-            const mockError = new Error('Network error');
-            (global.fetch as jest.Mock).mockRejectedValue(mockError);
-
-            const source = new PollingEventSource('https://example.com/api');
-            const onerror = jest.fn();
-            source.onerror = onerror;
-
-            await source.poll();
-
-            expect(onerror).toHaveBeenCalledTimes(1);
-            expect(onerror).toHaveBeenCalledWith(mockError);
-
-            source.close();
+            expect(results.length).toBe(1);
         });
 
-        it('should call onerror callback for non-OK HTTP responses', async () => {
+        it('should throw error for non-OK HTTP responses', async () => {
             (global.fetch as jest.Mock).mockResolvedValue({
                 ok: false,
                 status: 404,
                 statusText: 'Not Found',
             });
 
-            const source = new PollingEventSource('https://example.com/api');
-            const onerror = jest.fn();
-            source.onerror = onerror;
+            const stream = new PollingStream('https://example.com/api');
+            const iterator = stream.poll();
 
-            await source.poll();
-
-            expect(onerror).toHaveBeenCalledTimes(1);
-            expect(onerror).toHaveBeenCalledWith(new Error('HTTP 404: Not Found'));
-
-            source.close();
+            await expect(iterator.next()).rejects.toThrow('HTTP 404: Not Found');
         });
 
-        it('should not call callbacks after close', async () => {
+        it('should throw error when fetch fails', async () => {
+            const mockError = new Error('Network error');
+            (global.fetch as jest.Mock).mockRejectedValue(mockError);
+
+            const stream = new PollingStream('https://example.com/api');
+            const iterator = stream.poll();
+
+            await expect(iterator.next()).rejects.toThrow('Network error');
+        });
+
+        it('should pass AbortSignal to fetch', async () => {
+            const mockData = { message: 'test' };
             (global.fetch as jest.Mock).mockResolvedValue({
                 ok: true,
-                json: () => Promise.resolve({ data: 'test' }),
+                json: () => Promise.resolve(mockData),
             });
 
-            const source = new PollingEventSource('https://example.com/api');
-            const onmessage = jest.fn();
-            source.onmessage = onmessage;
+            const stream = new PollingStream('https://example.com/api');
+            const controller = new AbortController();
+            const iterator = stream.poll(controller.signal);
 
-            source.close();
+            await iterator.next();
 
-            await source.poll();
+            expect(global.fetch).toHaveBeenCalledWith('https://example.com/api', {
+                signal: controller.signal,
+            });
+        });
 
-            expect(onmessage).not.toHaveBeenCalled();
+        it('should stop immediately when signal is already aborted', async () => {
+            const stream = new PollingStream('https://example.com/api');
+            const controller = new AbortController();
+            controller.abort();
+
+            const iterator = stream.poll(controller.signal);
+
+            const result = await iterator.next();
+            expect(result.done).toBe(true);
+            expect(global.fetch).not.toHaveBeenCalled();
+        });
+
+        it('should work without an AbortSignal', async () => {
+            const mockData1 = { message: 'first' };
+            const mockData2 = { message: 'second' };
+
+            (global.fetch as jest.Mock)
+                .mockResolvedValueOnce({
+                    ok: true,
+                    json: () => Promise.resolve(mockData1),
+                })
+                .mockResolvedValueOnce({
+                    ok: true,
+                    json: () => Promise.resolve(mockData2),
+                });
+
+            const stream = new PollingStream('https://example.com/api');
+            const iterator = stream.poll(); // No signal provided
+
+            const result1 = await iterator.next();
+            expect(result1.value).toEqual(mockData1);
+
+            const result2 = await iterator.next();
+            expect(result2.value).toEqual(mockData2);
+
+            expect(global.fetch).toHaveBeenCalledWith('https://example.com/api', {
+                signal: undefined,
+            });
         });
     });
 });
