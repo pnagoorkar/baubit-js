@@ -1,1 +1,1 @@
-export { PollingStream } from './PollingStream';
+export { WebViewStream } from './WebViewStream';

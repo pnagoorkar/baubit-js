@@ -3,7 +3,7 @@ interface InitResponse {
     heartbeatInterval: number;
 }
 
-export class PollingStream implements AsyncIterable<unknown> {
+export class WebViewStream implements AsyncIterable<unknown> {
     private url: string;
     private signal?: AbortSignal;
     private instanceId: string | null = null;
@@ -99,8 +99,6 @@ export class PollingStream implements AsyncIterable<unknown> {
         // Wait for initialization to complete
         await this.initPromise;
 
-        let lastId: string | null = null;
-
         while (this.signal?.aborted === false) {
             const response = await fetch(this.url, {
                 signal: this.signal,
@@ -108,7 +106,7 @@ export class PollingStream implements AsyncIterable<unknown> {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ id: lastId, instanceId: this.instanceId }),
+                body: JSON.stringify({ instanceId: this.instanceId }),
             });
 
             if (!response.ok) {
@@ -116,11 +114,6 @@ export class PollingStream implements AsyncIterable<unknown> {
             }
 
             const data: unknown = await response.json();
-
-            // Extract id from response if it exists
-            if (data && typeof data === 'object' && 'id' in data) {
-                lastId = String((data as { id: unknown }).id);
-            }
 
             yield data;
         }

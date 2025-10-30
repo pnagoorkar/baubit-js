@@ -1,6 +1,6 @@
-import { PollingStream } from '../src/PollingStream';
+import { WebViewStream } from '../src/WebViewStream';
 
-describe('PollingStream', () => {
+describe('WebViewStream', () => {
     beforeEach(() => {
         jest.useFakeTimers();
         global.fetch = jest.fn();
@@ -21,20 +21,20 @@ describe('PollingStream', () => {
     describe('constructor', () => {
         it('should create an instance with a URL', () => {
             mockInitResponse();
-            const stream = new PollingStream('https://example.com/api');
-            expect(stream).toBeInstanceOf(PollingStream);
+            const stream = new WebViewStream('https://example.com/api');
+            expect(stream).toBeInstanceOf(WebViewStream);
         });
 
         it('should create an instance with a URL and AbortSignal', () => {
             mockInitResponse();
             const controller = new AbortController();
-            const stream = new PollingStream('https://example.com/api', controller.signal);
-            expect(stream).toBeInstanceOf(PollingStream);
+            const stream = new WebViewStream('https://example.com/api', controller.signal);
+            expect(stream).toBeInstanceOf(WebViewStream);
         });
 
         it('should call /new endpoint during initialization', async () => {
             mockInitResponse('test-id', 1000);
-            const stream = new PollingStream('https://example.com/api');
+            const stream = new WebViewStream('https://example.com/api');
 
             // Access the iterator to trigger initialization
             const iterator = stream[Symbol.asyncIterator]();
@@ -64,7 +64,7 @@ describe('PollingStream', () => {
                 });
 
             const controller = new AbortController();
-            const stream = new PollingStream('https://example.com/api', controller.signal);
+            const stream = new WebViewStream('https://example.com/api', controller.signal);
             const results: unknown[] = [];
 
             const iterator = stream[Symbol.asyncIterator]();
@@ -103,7 +103,7 @@ describe('PollingStream', () => {
                 });
 
             const controller = new AbortController();
-            const stream = new PollingStream('https://example.com/api', controller.signal);
+            const stream = new WebViewStream('https://example.com/api', controller.signal);
             const results: unknown[] = [];
 
             // Use for-await-of to iterate
@@ -130,7 +130,7 @@ describe('PollingStream', () => {
             });
 
             const controller = new AbortController();
-            const stream = new PollingStream('https://example.com/api', controller.signal);
+            const stream = new WebViewStream('https://example.com/api', controller.signal);
             const results: unknown[] = [];
 
             const iterator = stream[Symbol.asyncIterator]();
@@ -157,7 +157,7 @@ describe('PollingStream', () => {
                 statusText: 'Not Found',
             });
 
-            const stream = new PollingStream('https://example.com/api');
+            const stream = new WebViewStream('https://example.com/api');
             const iterator = stream[Symbol.asyncIterator]();
 
             await expect(iterator.next()).rejects.toThrow('HTTP 404: Not Found');
@@ -167,7 +167,7 @@ describe('PollingStream', () => {
             const mockError = new Error('Network error');
             (global.fetch as jest.Mock).mockRejectedValue(mockError);
 
-            const stream = new PollingStream('https://example.com/api');
+            const stream = new WebViewStream('https://example.com/api');
             const iterator = stream[Symbol.asyncIterator]();
 
             await expect(iterator.next()).rejects.toThrow('Network error');
@@ -182,7 +182,7 @@ describe('PollingStream', () => {
             });
 
             const controller = new AbortController();
-            const stream = new PollingStream('https://example.com/api', controller.signal);
+            const stream = new WebViewStream('https://example.com/api', controller.signal);
             const iterator = stream[Symbol.asyncIterator]();
 
             await iterator.next();
@@ -194,7 +194,7 @@ describe('PollingStream', () => {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ id: null, instanceId: 'inst-4' }),
+                body: JSON.stringify({ instanceId: 'inst-4' }),
             });
         });
 
@@ -214,7 +214,7 @@ describe('PollingStream', () => {
                 });
 
             const controller = new AbortController();
-            const stream = new PollingStream('https://example.com/api', controller.signal);
+            const stream = new WebViewStream('https://example.com/api', controller.signal);
             const iterator = stream[Symbol.asyncIterator]();
 
             await iterator.next();
@@ -228,7 +228,7 @@ describe('PollingStream', () => {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ id: null, instanceId: 'inst-5' }),
+                body: JSON.stringify({ instanceId: 'inst-5' }),
             });
 
             // Second data poll with id from first response
@@ -238,7 +238,7 @@ describe('PollingStream', () => {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ id: 'id1', instanceId: 'inst-5' }),
+                body: JSON.stringify({ instanceId: 'inst-5' }),
             });
         });
 
@@ -246,7 +246,7 @@ describe('PollingStream', () => {
             const controller = new AbortController();
             controller.abort();
 
-            const stream = new PollingStream('https://example.com/api', controller.signal);
+            const stream = new WebViewStream('https://example.com/api', controller.signal);
             const iterator = stream[Symbol.asyncIterator]();
 
             const result = await iterator.next();
@@ -263,7 +263,7 @@ describe('PollingStream', () => {
             });
 
             const controller = new AbortController();
-            const stream = new PollingStream('https://example.com/api', controller.signal);
+            const stream = new WebViewStream('https://example.com/api', controller.signal);
             const iterator = stream[Symbol.asyncIterator]();
 
             await iterator.next();
@@ -275,7 +275,7 @@ describe('PollingStream', () => {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ id: null, instanceId: 'inst-6' }),
+                body: JSON.stringify({ instanceId: 'inst-6' }),
             });
         });
     });
@@ -290,7 +290,7 @@ describe('PollingStream', () => {
             (global.fetch as jest.Mock).mockResolvedValue(mockHeartbeatResponse);
 
             const controller = new AbortController();
-            const stream = new PollingStream('https://example.com/api', controller.signal);
+            const stream = new WebViewStream('https://example.com/api', controller.signal);
 
             // Wait for initialization
             const iterator = stream[Symbol.asyncIterator]();
@@ -321,7 +321,7 @@ describe('PollingStream', () => {
             });
 
             const controller = new AbortController();
-            const stream = new PollingStream('https://example.com/api', controller.signal);
+            const stream = new WebViewStream('https://example.com/api', controller.signal);
 
             // Wait for initialization
             const iterator = stream[Symbol.asyncIterator]();
@@ -350,7 +350,7 @@ describe('PollingStream', () => {
                 .mockRejectedValueOnce(new Error('Heartbeat failed'));
 
             const controller = new AbortController();
-            const stream = new PollingStream('https://example.com/api', controller.signal);
+            const stream = new WebViewStream('https://example.com/api', controller.signal);
 
             // Wait for initialization
             const iterator = stream[Symbol.asyncIterator]();
@@ -373,7 +373,7 @@ describe('PollingStream', () => {
             });
 
             const controller = new AbortController();
-            const stream = new PollingStream('https://example.com/api', controller.signal);
+            const stream = new WebViewStream('https://example.com/api', controller.signal);
 
             // Wait for initialization
             const iterator = stream[Symbol.asyncIterator]();
@@ -403,7 +403,7 @@ describe('PollingStream', () => {
             });
 
             const controller = new AbortController();
-            const stream = new PollingStream('https://example.com/api', controller.signal);
+            const stream = new WebViewStream('https://example.com/api', controller.signal);
             const iterator = stream[Symbol.asyncIterator]();
 
             await expect(iterator.next()).rejects.toThrow('HTTP 500: Internal Server Error');
