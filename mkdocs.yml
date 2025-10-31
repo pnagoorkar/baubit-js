@@ -1,0 +1,85 @@
+site_name: baubit-js Documentation
+site_description: TypeScript/JavaScript library for MAUI WebView event streaming
+site_author: Pranav Nagoorkar
+site_url: https://pnagoorkar.github.io/baubit-js/
+
+repo_name: pnagoorkar/baubit-js
+repo_url: https://github.com/pnagoorkar/baubit-js
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+
+plugins:
+  - search
+  - minify:
+      minify_html: true
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Getting Started:
+    - Installation: getting-started/installation.md
+    - Quick Start: getting-started/quick-start.md
+  - API Reference:
+    - WebViewStream: api/webviewstream.md
+  - Server Implementation:
+    - Overview: server/overview.md
+    - Endpoints: server/endpoints.md
+    - Examples: server/examples.md
+  - Advanced:
+    - Error Handling: advanced/error-handling.md
+    - Reconnection: advanced/reconnection.md
+    - Type Safety: advanced/type-safety.md
+    - Multiple Streams: advanced/multiple-streams.md
+  - Troubleshooting: troubleshooting.md
+  - Contributing: contributing.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/pnagoorkar/baubit-js
+    - icon: fontawesome/brands/npm
+      link: https://www.npmjs.com/package/baubit-js
+
+copyright: Copyright &copy; 2024 Pranav Nagoorkar
