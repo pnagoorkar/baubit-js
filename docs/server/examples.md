@@ -1,325 +1,363 @@
 # Server Implementation Examples
 
-Complete working examples for implementing the server endpoints.
+Complete working examples for implementing the server endpoints using C# and ASP.NET Core, suitable for .NET MAUI applications.
 
-## Express.js Example
+## ASP.NET Core Minimal API
 
-A complete implementation using Node.js and Express:
+A complete implementation using ASP.NET Core Minimal API:
 
-```javascript
-const express = require('express');
-const app = express();
-app.use(express.json());
+```csharp
+using System.Collections.Concurrent;
+using Microsoft.AspNetCore.Mvc;
 
-const sessions = new Map();
-const eventQueues = new Map();
+var builder = WebApplication.CreateBuilder(args);
+var app = builder.Build();
+
+var sessions = new ConcurrentDictionary<string, Session>();
+var eventQueues = new ConcurrentDictionary<string, ConcurrentQueue<object>>();
 
 // Initialize session
-app.get('/events/new', (req, res) => {
-  const sessionId = `session-${Date.now()}-${Math.random()}`;
-  sessions.set(sessionId, {
-    created: Date.now(),
-    lastHeartbeat: Date.now()
-  });
-  eventQueues.set(sessionId, []);
-  
-  res.json({
-    id: sessionId,
-    heartbeatInterval: 30000
-  });
+app.MapGet("/events/new", () =>
+{
+    var sessionId = $"session-{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}-{Guid.NewGuid()}";
+    sessions[sessionId] = new Session
+    {
+        Created = DateTime.UtcNow,
+        LastHeartbeat = DateTime.UtcNow
+    };
+    eventQueues[sessionId] = new ConcurrentQueue<object>();
+    
+    return Results.Json(new
+    {
+        id = sessionId,
+        heartbeatInterval = 30000
+    });
 });
 
 // Heartbeat
-app.post('/events/heartbeat', (req, res) => {
-  const { id } = req.body;
-  const session = sessions.get(id);
-  
-  if (session) {
-    session.lastHeartbeat = Date.now();
-    res.sendStatus(200);
-  } else {
-    res.sendStatus(404);
-  }
+app.MapPost("/events/heartbeat", ([FromBody] HeartbeatRequest request) =>
+{
+    if (sessions.TryGetValue(request.Id, out var session))
+    {
+        session.LastHeartbeat = DateTime.UtcNow;
+        return Results.Ok();
+    }
+    return Results.NotFound();
 });
 
 // Poll for events
-app.post('/events', (req, res) => {
-  const { instanceId } = req.body;
-  
-  if (!sessions.has(instanceId)) {
-    return res.status(404).json({ error: 'Session not found' });
-  }
-  
-  const queue = eventQueues.get(instanceId);
-  
-  if (queue && queue.length > 0) {
-    const event = queue.shift();
-    res.json(event);
-  } else {
-    res.json({ type: 'keep-alive' });
-  }
+app.MapPost("/events", ([FromBody] PollRequest request) =>
+{
+    if (!sessions.ContainsKey(request.InstanceId))
+    {
+        return Results.NotFound(new { error = "Session not found" });
+    }
+    
+    if (eventQueues.TryGetValue(request.InstanceId, out var queue) && 
+        queue.TryDequeue(out var @event))
+    {
+        return Results.Json(@event);
+    }
+    
+    return Results.Json(new { type = "keep-alive" });
 });
-
-// Helper function to add events to a session
-function addEventToSession(sessionId, event) {
-  const queue = eventQueues.get(sessionId);
-  if (queue) {
-    queue.push(event);
-  }
-}
 
 // Cleanup expired sessions
-setInterval(() => {
-  const now = Date.now();
-  const timeout = 2 * 30000; // 2x heartbeat interval
-  
-  for (const [sessionId, session] of sessions.entries()) {
-    if (now - session.lastHeartbeat > timeout) {
-      sessions.delete(sessionId);
-      eventQueues.delete(sessionId);
-      console.log(`Cleaned up expired session: ${sessionId}`);
+var cleanupTimer = new Timer(_ =>
+{
+    var now = DateTime.UtcNow;
+    var timeout = TimeSpan.FromMilliseconds(60000); // 2x heartbeat interval
+    
+    foreach (var (sessionId, session) in sessions)
+    {
+        if (now - session.LastHeartbeat > timeout)
+        {
+            sessions.TryRemove(sessionId, out _);
+            eventQueues.TryRemove(sessionId, out _);
+            Console.WriteLine($"Cleaned up expired session: {sessionId}");
+        }
     }
-  }
-}, 60000); // Run every minute
+}, null, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(1));
 
-app.listen(3000, () => {
-  console.log('Server running on port 3000');
-});
-```
+app.Run();
 
-## With TypeScript
-
-TypeScript version with type safety:
-
-```typescript
-import express, { Request, Response } from 'express';
-
-interface Session {
-  created: number;
-  lastHeartbeat: number;
+record Session
+{
+    public DateTime Created { get; init; }
+    public DateTime LastHeartbeat { get; set; }
 }
 
-interface Event {
-  type: string;
-  data?: unknown;
-  timestamp?: number;
+record HeartbeatRequest(string Id);
+record PollRequest(string InstanceId);
+```
+
+## ASP.NET Core with Controllers
+
+Controller-based implementation with better structure:
+
+```csharp
+using System.Collections.Concurrent;
+using Microsoft.AspNetCore.Mvc;
+
+namespace EventStreamApi.Controllers;
+
+[ApiController]
+[Route("events")]
+public class EventsController : ControllerBase
+{
+    private static readonly ConcurrentDictionary<string, Session> Sessions = new();
+    private static readonly ConcurrentDictionary<string, ConcurrentQueue<EventData>> EventQueues = new();
+    
+    [HttpGet("new")]
+    public IActionResult InitializeSession()
+    {
+        var sessionId = $"session-{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}-{Guid.NewGuid()}";
+        Sessions[sessionId] = new Session
+        {
+            Created = DateTime.UtcNow,
+            LastHeartbeat = DateTime.UtcNow
+        };
+        EventQueues[sessionId] = new ConcurrentQueue<EventData>();
+        
+        return Ok(new
+        {
+            id = sessionId,
+            heartbeatInterval = 30000
+        });
+    }
+    
+    [HttpPost("heartbeat")]
+    public IActionResult Heartbeat([FromBody] HeartbeatRequest request)
+    {
+        if (Sessions.TryGetValue(request.Id, out var session))
+        {
+            session.LastHeartbeat = DateTime.UtcNow;
+            return Ok();
+        }
+        return NotFound();
+    }
+    
+    [HttpPost]
+    public IActionResult PollEvents([FromBody] PollRequest request)
+    {
+        if (!Sessions.ContainsKey(request.InstanceId))
+        {
+            return NotFound(new { error = "Session not found" });
+        }
+        
+        if (EventQueues.TryGetValue(request.InstanceId, out var queue) && 
+            queue.TryDequeue(out var @event))
+        {
+            return Ok(@event);
+        }
+        
+        return Ok(new { type = "keep-alive" });
+    }
+    
+    // Helper method to add events to a session
+    public static void AddEventToSession(string sessionId, EventData @event)
+    {
+        if (EventQueues.TryGetValue(sessionId, out var queue))
+        {
+            queue.Enqueue(@event);
+        }
+    }
 }
 
-const app = express();
-app.use(express.json());
+public class Session
+{
+    public DateTime Created { get; init; }
+    public DateTime LastHeartbeat { get; set; }
+}
 
-const sessions = new Map<string, Session>();
-const eventQueues = new Map<string, Event[]>();
-
-app.get('/events/new', (req: Request, res: Response) => {
-  const sessionId = `session-${Date.now()}-${Math.random()}`;
-  sessions.set(sessionId, {
-    created: Date.now(),
-    lastHeartbeat: Date.now()
-  });
-  eventQueues.set(sessionId, []);
-  
-  res.json({
-    id: sessionId,
-    heartbeatInterval: 30000
-  });
-});
-
-app.post('/events/heartbeat', (req: Request, res: Response) => {
-  const { id } = req.body as { id: string };
-  const session = sessions.get(id);
-  
-  if (session) {
-    session.lastHeartbeat = Date.now();
-    res.sendStatus(200);
-  } else {
-    res.sendStatus(404);
-  }
-});
-
-app.post('/events', (req: Request, res: Response) => {
-  const { instanceId } = req.body as { instanceId: string };
-  
-  if (!sessions.has(instanceId)) {
-    return res.status(404).json({ error: 'Session not found' });
-  }
-  
-  const queue = eventQueues.get(instanceId);
-  
-  if (queue && queue.length > 0) {
-    const event = queue.shift();
-    res.json(event);
-  } else {
-    res.json({ type: 'keep-alive' });
-  }
-});
-
-app.listen(3000, () => {
-  console.log('Server running on port 3000');
-});
+public record HeartbeatRequest(string Id);
+public record PollRequest(string InstanceId);
+public record EventData(string Type, object? Data = null, DateTime? Timestamp = null);
 ```
 
-## With Redis
+## With Dependency Injection and Services
 
-Using Redis for session storage to support multiple server instances:
+Production-ready implementation with proper separation of concerns:
 
-```javascript
-const express = require('express');
-const redis = require('redis');
-const { promisify } = require('util');
+```csharp
+// Program.cs
+using EventStreamApi.Services;
 
-const app = express();
-app.use(express.json());
+var builder = WebApplication.CreateBuilder(args);
 
-const client = redis.createClient();
-const getAsync = promisify(client.get).bind(client);
-const setAsync = promisify(client.set).bind(client);
-const delAsync = promisify(client.del).bind(client);
+builder.Services.AddControllers();
+builder.Services.AddSingleton<ISessionManager, SessionManager>();
+builder.Services.AddHostedService<SessionCleanupService>();
 
-app.get('/events/new', async (req, res) => {
-  const sessionId = `session-${Date.now()}-${Math.random()}`;
-  const session = {
-    created: Date.now(),
-    lastHeartbeat: Date.now()
-  };
-  
-  await setAsync(`session:${sessionId}`, JSON.stringify(session));
-  await setAsync(`queue:${sessionId}`, JSON.stringify([]));
-  
-  res.json({
-    id: sessionId,
-    heartbeatInterval: 30000
-  });
-});
+var app = builder.Build();
+app.MapControllers();
+app.Run();
 
-app.post('/events/heartbeat', async (req, res) => {
-  const { id } = req.body;
-  const sessionData = await getAsync(`session:${id}`);
-  
-  if (sessionData) {
-    const session = JSON.parse(sessionData);
-    session.lastHeartbeat = Date.now();
-    await setAsync(`session:${id}`, JSON.stringify(session));
-    res.sendStatus(200);
-  } else {
-    res.sendStatus(404);
-  }
-});
+// Services/ISessionManager.cs
+namespace EventStreamApi.Services;
 
-app.post('/events', async (req, res) => {
-  const { instanceId } = req.body;
-  
-  const sessionData = await getAsync(`session:${instanceId}`);
-  if (!sessionData) {
-    return res.status(404).json({ error: 'Session not found' });
-  }
-  
-  const queueData = await getAsync(`queue:${instanceId}`);
-  const queue = JSON.parse(queueData || '[]');
-  
-  if (queue.length > 0) {
-    const event = queue.shift();
-    await setAsync(`queue:${instanceId}`, JSON.stringify(queue));
-    res.json(event);
-  } else {
-    res.json({ type: 'keep-alive' });
-  }
-});
+public interface ISessionManager
+{
+    string CreateSession();
+    bool UpdateHeartbeat(string sessionId);
+    bool SessionExists(string sessionId);
+    object? GetNextEvent(string sessionId);
+    void AddEvent(string sessionId, object @event);
+}
 
-app.listen(3000, () => {
-  console.log('Server running on port 3000');
-});
-```
+// Services/SessionManager.cs
+using System.Collections.Concurrent;
 
-## With Database
+namespace EventStreamApi.Services;
 
-Using a database for persistent session storage:
+public class SessionManager : ISessionManager
+{
+    private readonly ConcurrentDictionary<string, SessionData> _sessions = new();
+    private readonly ConcurrentDictionary<string, ConcurrentQueue<object>> _eventQueues = new();
+    private const int HeartbeatIntervalMs = 30000;
+    
+    public string CreateSession()
+    {
+        var sessionId = $"session-{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}-{Guid.NewGuid()}";
+        _sessions[sessionId] = new SessionData
+        {
+            Created = DateTime.UtcNow,
+            LastHeartbeat = DateTime.UtcNow
+        };
+        _eventQueues[sessionId] = new ConcurrentQueue<object>();
+        return sessionId;
+    }
+    
+    public bool UpdateHeartbeat(string sessionId)
+    {
+        if (_sessions.TryGetValue(sessionId, out var session))
+        {
+            session.LastHeartbeat = DateTime.UtcNow;
+            return true;
+        }
+        return false;
+    }
+    
+    public bool SessionExists(string sessionId) => _sessions.ContainsKey(sessionId);
+    
+    public object? GetNextEvent(string sessionId)
+    {
+        if (_eventQueues.TryGetValue(sessionId, out var queue) && 
+            queue.TryDequeue(out var @event))
+        {
+            return @event;
+        }
+        return null;
+    }
+    
+    public void AddEvent(string sessionId, object @event)
+    {
+        if (_eventQueues.TryGetValue(sessionId, out var queue))
+        {
+            queue.Enqueue(@event);
+        }
+    }
+    
+    public void CleanupExpiredSessions()
+    {
+        var now = DateTime.UtcNow;
+        var timeout = TimeSpan.FromMilliseconds(HeartbeatIntervalMs * 2);
+        
+        foreach (var (sessionId, session) in _sessions)
+        {
+            if (now - session.LastHeartbeat > timeout)
+            {
+                _sessions.TryRemove(sessionId, out _);
+                _eventQueues.TryRemove(sessionId, out _);
+            }
+        }
+    }
+    
+    private class SessionData
+    {
+        public DateTime Created { get; init; }
+        public DateTime LastHeartbeat { get; set; }
+    }
+}
 
-```javascript
-const express = require('express');
-const { Pool } = require('pg');
+// Services/SessionCleanupService.cs
+namespace EventStreamApi.Services;
 
-const app = express();
-app.use(express.json());
+public class SessionCleanupService : BackgroundService
+{
+    private readonly ISessionManager _sessionManager;
+    private readonly ILogger<SessionCleanupService> _logger;
+    
+    public SessionCleanupService(ISessionManager sessionManager, ILogger<SessionCleanupService> logger)
+    {
+        _sessionManager = sessionManager;
+        _logger = logger;
+    }
+    
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromMinutes(1));
+        
+        while (await timer.WaitForNextTickAsync(stoppingToken))
+        {
+            try
+            {
+                _sessionManager.CleanupExpiredSessions();
+                _logger.LogInformation("Session cleanup completed");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error during session cleanup");
+            }
+        }
+    }
+}
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL
-});
+// Controllers/EventsController.cs
+using Microsoft.AspNetCore.Mvc;
+using EventStreamApi.Services;
 
-// Database schema (PostgreSQL)
-/*
-CREATE TABLE sessions (
-  id VARCHAR(255) PRIMARY KEY,
-  created TIMESTAMP NOT NULL,
-  last_heartbeat TIMESTAMP NOT NULL
-);
+namespace EventStreamApi.Controllers;
 
-CREATE TABLE events (
-  id SERIAL PRIMARY KEY,
-  session_id VARCHAR(255) REFERENCES sessions(id),
-  data JSONB NOT NULL,
-  created TIMESTAMP NOT NULL
-);
-*/
+[ApiController]
+[Route("events")]
+public class EventsController : ControllerBase
+{
+    private readonly ISessionManager _sessionManager;
+    
+    public EventsController(ISessionManager sessionManager)
+    {
+        _sessionManager = sessionManager;
+    }
+    
+    [HttpGet("new")]
+    public IActionResult InitializeSession()
+    {
+        var sessionId = _sessionManager.CreateSession();
+        return Ok(new { id = sessionId, heartbeatInterval = 30000 });
+    }
+    
+    [HttpPost("heartbeat")]
+    public IActionResult Heartbeat([FromBody] HeartbeatRequest request)
+    {
+        return _sessionManager.UpdateHeartbeat(request.Id) ? Ok() : NotFound();
+    }
+    
+    [HttpPost]
+    public IActionResult PollEvents([FromBody] PollRequest request)
+    {
+        if (!_sessionManager.SessionExists(request.InstanceId))
+        {
+            return NotFound(new { error = "Session not found" });
+        }
+        
+        var @event = _sessionManager.GetNextEvent(request.InstanceId);
+        return Ok(@event ?? new { type = "keep-alive" });
+    }
+}
 
-app.get('/events/new', async (req, res) => {
-  const sessionId = `session-${Date.now()}-${Math.random()}`;
-  
-  await pool.query(
-    'INSERT INTO sessions (id, created, last_heartbeat) VALUES ($1, NOW(), NOW())',
-    [sessionId]
-  );
-  
-  res.json({
-    id: sessionId,
-    heartbeatInterval: 30000
-  });
-});
-
-app.post('/events/heartbeat', async (req, res) => {
-  const { id } = req.body;
-  
-  const result = await pool.query(
-    'UPDATE sessions SET last_heartbeat = NOW() WHERE id = $1',
-    [id]
-  );
-  
-  if (result.rowCount > 0) {
-    res.sendStatus(200);
-  } else {
-    res.sendStatus(404);
-  }
-});
-
-app.post('/events', async (req, res) => {
-  const { instanceId } = req.body;
-  
-  // Check if session exists
-  const sessionCheck = await pool.query(
-    'SELECT id FROM sessions WHERE id = $1',
-    [instanceId]
-  );
-  
-  if (sessionCheck.rows.length === 0) {
-    return res.status(404).json({ error: 'Session not found' });
-  }
-  
-  // Get next event
-  const result = await pool.query(
-    'DELETE FROM events WHERE id = (SELECT id FROM events WHERE session_id = $1 ORDER BY created ASC LIMIT 1) RETURNING data',
-    [instanceId]
-  );
-  
-  if (result.rows.length > 0) {
-    res.json(result.rows[0].data);
-  } else {
-    res.json({ type: 'keep-alive' });
-  }
-});
-
-app.listen(3000, () => {
-  console.log('Server running on port 3000');
-});
+public record HeartbeatRequest(string Id);
+public record PollRequest(string InstanceId);
 ```
 
 ## See Also
