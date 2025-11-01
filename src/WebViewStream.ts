@@ -16,14 +16,21 @@ interface InitResponse {
  * This class implements AsyncIterable, allowing consumption of server-sent events
  * through async iteration patterns while maintaining session health via heartbeat.
  *
+ * @template T - The type of data yielded by the stream
+ *
  * @example
  * ```typescript
+ * interface MyEvent {
+ *   id: string;
+ *   message: string;
+ * }
+ *
  * const controller = new AbortController();
- * const stream = new WebViewStream('https://api.example.com/events', controller.signal);
+ * const stream = new WebViewStream<MyEvent>('https://api.example.com/events', controller.signal);
  *
  * try {
  *   for await (const event of stream) {
- *     console.log('Received event:', event);
+ *     console.log('Received event:', event.message); // TypeScript knows event is MyEvent
  *     // Process event...
  *   }
  * } catch (error) {
@@ -33,7 +40,7 @@ interface InitResponse {
  * }
  * ```
  */
-export class WebViewStream implements AsyncIterable<unknown> {
+export class WebViewStream<T = unknown> implements AsyncIterable<T> {
     private url: string;
     private signal?: AbortSignal;
     private instanceId: string | null = null;
@@ -53,12 +60,16 @@ export class WebViewStream implements AsyncIterable<unknown> {
      *
      * @example
      * ```typescript
-     * // Basic usage
+     * // Basic usage with inferred type
      * const stream = new WebViewStream('https://api.example.com/events');
+     *
+     * // With explicit type
+     * interface MyEvent { id: string; data: string; }
+     * const typedStream = new WebViewStream<MyEvent>('https://api.example.com/events');
      *
      * // With cancellation support
      * const controller = new AbortController();
-     * const stream = new WebViewStream('https://api.example.com/events', controller.signal);
+     * const stream = new WebViewStream<MyEvent>('https://api.example.com/events', controller.signal);
      * // Later: controller.abort() to stop the stream
      * ```
      */
@@ -192,22 +203,23 @@ export class WebViewStream implements AsyncIterable<unknown> {
      * - Sends the instance ID with each request to maintain session context
      * - Throws errors for non-OK HTTP responses
      *
-     * @yields {unknown} Events received from the server
+     * @yields {T} Events received from the server
      * @throws {Error} If a request fails or returns non-OK status
      *
      * @example
      * ```typescript
+     * interface MyEvent { id: string; data: string; }
      * const controller = new AbortController();
-     * const stream = new WebViewStream('https://api.example.com/events', controller.signal);
+     * const stream = new WebViewStream<MyEvent>('https://api.example.com/events', controller.signal);
      *
      * for await (const event of stream) {
-     *   console.log('Event:', event);
+     *   console.log('Event:', event.data); // TypeScript knows event is MyEvent
      *   // Process event...
      *   // Optionally abort: if (shouldStop) controller.abort();
      * }
      * ```
      */
-    async *[Symbol.asyncIterator](): AsyncGenerator<unknown, void, void> {
+    async *[Symbol.asyncIterator](): AsyncGenerator<T, void, void> {
         // Wait for initialization to complete
         await this.initPromise;
 
@@ -225,7 +237,7 @@ export class WebViewStream implements AsyncIterable<unknown> {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
 
-            const data: unknown = await response.json();
+            const data = (await response.json()) as T;
 
             yield data;
         }

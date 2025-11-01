@@ -2,9 +2,15 @@
 
 Complete API documentation for the `WebViewStream` class.
 
-## Class: WebViewStream
+## Class: WebViewStream\<T>
 
 `WebViewStream` provides an EventSource-like interface for MAUI WebView environments where keep-alive streams are not supported when intercepting WebResource requests.
+
+### Type Parameters
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `T` | `unknown` | The type of data yielded by the stream |
 
 ### Constructor
 
@@ -24,12 +30,20 @@ Creates a new WebViewStream instance.
 #### Example
 
 ```typescript
-// Basic usage
+// Basic usage with inferred type (unknown)
 const stream = new WebViewStream('https://api.example.com/events');
+
+// With explicit type for type safety
+interface MyEvent {
+  id: string;
+  data: string;
+  timestamp: number;
+}
+const typedStream = new WebViewStream<MyEvent>('https://api.example.com/events');
 
 // With cancellation support
 const controller = new AbortController();
-const stream = new WebViewStream('https://api.example.com/events', controller.signal);
+const stream = new WebViewStream<MyEvent>('https://api.example.com/events', controller.signal);
 // Later: controller.abort() to stop the stream
 ```
 
@@ -46,13 +60,23 @@ Upon construction, the stream:
 
 ## Async Iterator
 
-The class implements `AsyncIterable<unknown>`, allowing direct use in `for await...of` loops.
+The class implements `AsyncIterable<T>`, allowing direct use in `for await...of` loops.
 
 ### Usage
 
 ```typescript
+// With explicit type
+interface MyEvent {
+  id: string;
+  type: string;
+  data: unknown;
+}
+
+const stream = new WebViewStream<MyEvent>('https://api.example.com/events');
+
 for await (const event of stream) {
-  // Process event
+  // TypeScript knows event is MyEvent
+  console.log(event.id, event.type);
 }
 ```
 
@@ -63,22 +87,27 @@ Each iteration:
 - Waits for initialization to complete (on first iteration)
 - Makes a POST request to `{url}` with the session ID
 - Waits for server response
-- Yields the received data
+- Yields the received data (typed as T)
 - Continues while `signal.aborted === false`
 
 ### Return Type
 
-The iterator yields values of type `unknown`. You should validate or cast the data as needed:
+The iterator yields values of type `T` (the generic type parameter). TypeScript provides full type safety:
 
 ```typescript
 interface MyEvent {
-  type: string;
-  data: unknown;
+  type: 'message' | 'notification';
+  data: string;
+  timestamp: number;
 }
 
+const stream = new WebViewStream<MyEvent>('https://api.example.com/events');
+
 for await (const event of stream) {
-  const typedEvent = event as MyEvent;
-  // Use typedEvent...
+  // TypeScript knows event has all MyEvent properties
+  if (event.type === 'message') {
+    console.log('Message:', event.data);
+  }
 }
 ```
 

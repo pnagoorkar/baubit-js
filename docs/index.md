@@ -12,7 +12,7 @@ A TypeScript/JavaScript library providing utilities for modern web applications,
 
 ## Key Features
 
-- ✅ **TypeScript**: Full TypeScript support with type declarations
+- ✅ **TypeScript**: Full TypeScript support with generic type safety (`WebViewStream<T>`)
 - ✅ **ESM**: Native ES Module support
 - ✅ **AsyncIterable**: Modern async iteration patterns
 - ✅ **Session Management**: Automatic session initialization and heartbeat
@@ -35,12 +35,19 @@ In .NET MAUI applications, when you intercept WebResource requests in a WebView,
 ```typescript
 import { WebViewStream } from 'baubit-js';
 
+// Define your event type for type safety
+interface MyEvent {
+  id: string;
+  message: string;
+  timestamp: number;
+}
+
 const controller = new AbortController();
-const stream = new WebViewStream('https://api.example.com/events', controller.signal);
+const stream = new WebViewStream<MyEvent>('https://api.example.com/events', controller.signal);
 
 try {
   for await (const event of stream) {
-    console.log('Received event:', event);
+    console.log('Received event:', event.message); // TypeScript knows event is MyEvent
     // Process event...
   }
 } catch (error) {

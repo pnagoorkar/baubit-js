@@ -1,6 +1,29 @@
 # Type Safety
 
-Implement type-safe event handling with `WebViewStream`.
+Implement type-safe event handling with `WebViewStream` using generics.
+
+## Using Generic Type Parameter
+
+`WebViewStream` is a generic class that accepts a type parameter for compile-time type safety:
+
+```typescript
+interface MyEvent {
+  id: string;
+  type: string;
+  data: unknown;
+  timestamp: number;
+}
+
+// Create a typed stream
+const stream = new WebViewStream<MyEvent>(url, signal);
+
+// TypeScript knows event is MyEvent
+for await (const event of stream) {
+  console.log(event.id); // ✓ Type-safe
+  console.log(event.type); // ✓ Type-safe
+  console.log(event.data); // ✓ Type-safe
+}
+```
 
 ## Define Event Types
 
@@ -30,6 +53,9 @@ interface UpdateEvent extends BaseEvent {
 }
 
 type AppEvent = NotificationEvent | UpdateEvent;
+
+// Create a typed stream with union type
+const stream = new WebViewStream<AppEvent>(url, signal);
 ```
 
 ## Type Guards
@@ -60,19 +86,23 @@ function isUpdateEvent(event: unknown): event is UpdateEvent {
 
 ## Typed Stream Processing
 
-Use type guards to process events safely:
+Use type guards to process events safely with a typed stream:
 
 ```typescript
+const stream = new WebViewStream<AppEvent>(url, signal);
+
 for await (const event of stream) {
+  // TypeScript knows event is AppEvent (NotificationEvent | UpdateEvent)
   if (isNotificationEvent(event)) {
-    // TypeScript knows event is NotificationEvent
+    // TypeScript narrows to NotificationEvent
     console.log(event.data.title);
     handleNotification(event);
   } else if (isUpdateEvent(event)) {
-    // TypeScript knows event is UpdateEvent
+    // TypeScript narrows to UpdateEvent
     console.log(event.data.id);
     handleUpdate(event);
   } else {
+    // TypeScript knows this branch shouldn't happen with proper types
     console.warn('Unknown event type:', event);
   }
 }
@@ -80,7 +110,7 @@ for await (const event of stream) {
 
 ## Validation with Zod
 
-Use Zod for runtime validation:
+Use Zod for runtime validation with a typed stream:
 
 ```typescript
 import { z } from 'zod';
@@ -97,8 +127,12 @@ const NotificationEventSchema = z.object({
 
 type NotificationEvent = z.infer<typeof NotificationEventSchema>;
 
+// Use the inferred type with WebViewStream
+const stream = new WebViewStream<NotificationEvent>(url, signal);
+
 for await (const event of stream) {
   try {
+    // Runtime validation (event is already typed as NotificationEvent at compile time)
     const notification = NotificationEventSchema.parse(event);
     handleNotification(notification);
   } catch (error) {
@@ -107,37 +141,54 @@ for await (const event of stream) {
 }
 ```
 
-## Generic Stream Wrapper
+## Runtime Validation Wrapper
 
-Create a generic wrapper for type-safe streams:
+Create a wrapper that combines compile-time and runtime type safety:
 
 ```typescript
-class TypedStream<T> {
+class ValidatedStream<T> {
   constructor(
-    private stream: WebViewStream,
+    private stream: WebViewStream<T>,
     private validator: (event: unknown) => event is T
   ) {}
   
   async *[Symbol.asyncIterator](): AsyncGenerator<T, void, void> {
     for await (const event of this.stream) {
+      // Runtime validation even though TypeScript thinks it's already type T
       if (this.validator(event)) {
         yield event;
       } else {
-        console.warn('Event failed validation:', event);
+        console.warn('Event failed runtime validation:', event);
       }
     }
   }
 }
 
 // Usage
-const typedStream = new TypedStream(
-  new WebViewStream(url, signal),
-  isNotificationEvent
-);
+const baseStream = new WebViewStream<NotificationEvent>(url, signal);
+const validatedStream = new ValidatedStream(baseStream, isNotificationEvent);
 
-for await (const event of typedStream) {
-  // event is guaranteed to be NotificationEvent
+for await (const event of validatedStream) {
+  // event is guaranteed to be NotificationEvent at both compile-time and runtime
   console.log(event.data.title);
+}
+```
+
+## Direct Generic Usage (Recommended)
+
+For most use cases, using the generic parameter directly is sufficient:
+
+```typescript
+interface MyEvent {
+  id: string;
+  message: string;
+}
+
+const stream = new WebViewStream<MyEvent>(url, signal);
+
+for await (const event of stream) {
+  // Full type safety without additional wrappers
+  console.log(event.id, event.message);
 }
 ```
 
