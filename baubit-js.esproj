@@ -1,0 +1,16 @@
+﻿<!--If the below sdk version throws an error, replace it with the latest version of the below package on your machine-->
+<!-- %USERPROFILE%\.nuget\packages\microsoft.visualstudio.javascript.sdk -->
+<Project Sdk="Microsoft.VisualStudio.JavaScript.Sdk/1.0.784122">
+  <PropertyGroup>
+    <BuildCommand>npm run build</BuildCommand>
+    <CleanCommand>npm run clean</CleanCommand>
+  </PropertyGroup>
+  <ItemGroup>
+    <Folder Include="src\" />
+    <Folder Include="tests\" />
+    <Folder Include="dist\" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="**\*" Exclude="node_modules\**;dist\**;coverage\**;.git\**" />
+  </ItemGroup>  
+</Project>
